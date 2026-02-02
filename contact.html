@@ -4,29 +4,160 @@
   <meta charset="UTF-8">
   <title>TRANSMISSION</title>
   <link rel="stylesheet" href="css/style.css">
-</head>
-<body>
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.160.0/build/three.module.js"
+    }
+  }
+      (function(){
+      let animating = false;
+      function easeOutCubic(t){ return 1 - Math.pow(1 - t, 3); }
 
-<div id="scanlines"></div>
+      let audioCtx = null;
+      function ensureAudio(){ if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)(); return audioCtx; }
+      function playCreakAndClick(delaySec){
+        const ctx = ensureAudio();
+        const now = ctx.currentTime + (delaySec || 0);
+        const o = ctx.createOscillator(); const g = ctx.createGain();
+        o.type = 'sine'; o.frequency.setValueAtTime(150, now); o.frequency.exponentialRampToValueAtTime(78, now + 0.12);
+        g.gain.setValueAtTime(0.0001, now); g.gain.linearRampToValueAtTime(0.05, now + 0.02); g.gain.linearRampToValueAtTime(0.001, now + 0.12);
+        o.connect(g); g.connect(ctx.destination); o.start(now); o.stop(now + 0.13);
+        const buffer = ctx.createBuffer(1, ctx.sampleRate * 0.02, ctx.sampleRate);
+        const data = buffer.getChannelData(0); for(let i=0;i<data.length;i++) data[i] = (Math.random()*2-1) * Math.exp(-i/data.length*6);
+        const src = ctx.createBufferSource(); const gg = ctx.createGain(); src.buffer = buffer; src.connect(gg); gg.connect(ctx.destination);
+        gg.gain.setValueAtTime(0.0001, now + 0.28); gg.gain.exponentialRampToValueAtTime(0.8, now + 0.285); gg.gain.exponentialRampToValueAtTime(0.0001, now + 0.34);
+        src.start(now + 0.28);
+      }
 
-<div class="container">
-  <div class="frame">
+      function animateDoorClose(){
+        if(animating) return; animating = true;
+        const duration = 420; const start = performance.now();
+        const endRot = -Math.PI * 0.95; const startScale = 1; const targetScale = 1.06;
+        const overlay = document.createElement('div'); overlay.style.position='fixed'; overlay.style.left='0'; overlay.style.top='0'; overlay.style.width='100%'; overlay.style.height='100%'; overlay.style.background='#1b0f07'; overlay.style.transformOrigin='left center'; overlay.style.transform='scaleX(0)'; overlay.style.pointerEvents='none'; overlay.style.zIndex=10000; document.body.appendChild(overlay);
+        playCreakAndClick(0);
+  function frame(now){ const t = Math.min(1,(now-start)/duration); const e = easeOutCubic(t); doorPivot.rotation.y = endRot * e; const s = startScale + (targetScale - startScale) * e; house.scale.set(s,s,s); overlay.style.transform = `scaleX(${e})`; renderer.render(scene,camera); if(t<1) requestAnimationFrame(frame); else { playCreakAndClick(0.0); setTimeout(()=> window.location.href = 'index.html?skipIntro=1', 140); } }
+        requestAnimationFrame(frame);
+      }
+      canvas.addEventListener('click', animateDoorClose);
+    })();
+            <span class="contact-value">@yourprofile</span>
+          </div>
+        </a>
 
-    <nav class="nav">
-      <a href="index.html">HOME</a> |
-      <a href="beats.html">AUDIO</a> |
-      <a href="about.html">PROFILE</a> |
-      <a href="releases.html">ARCHIVE</a> |
-      <a href="contact.html" class="active">TRANSMISSION</a>
-    </nav>
+        <a href="https://www.youtube.com/@prodigby" class="contact-link youtube-link" target="_blank">
+          <div class="contact-text">
+            <span class="contact-label">YouTube</span>
+            <span class="contact-value">@prodigby</span>
+          </div>
+        </a>
+      </div>
 
-    <h1 class="title">TRANSMISSION</h1>
-
-    <p>CONTACT: yourmail@email.com</p>
-    <p>STATUS: WAITING FOR SIGNAL...</p>
+      <p class="contact-footer">i read every message.</p>
+    </div>
 
   </div>
 </div>
 
 </body>
 </html>
+
+<script>
+// mini spinning house in bottom-right that links back to menu
+window.addEventListener('three-ready', function(){
+  (function(){
+    const canvas = document.createElement('canvas');
+    canvas.id = 'mini-house-canvas';
+    canvas.style.position = 'fixed';
+    canvas.style.right = '18px';
+    canvas.style.bottom = '128px';
+    canvas.style.width = '140px';
+    canvas.style.height = '140px';
+    canvas.style.zIndex = 10001;
+    canvas.style.cursor = 'pointer';
+    document.body.appendChild(canvas);
+
+    const renderer = new THREE.WebGLRenderer({ canvas: canvas, alpha: true, antialias: true });
+    renderer.setSize(140, 140);
+    renderer.setPixelRatio(window.devicePixelRatio || 1);
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 10);
+    camera.position.set(0, 1.2, 2.2);
+
+    const ambient = new THREE.AmbientLight(0xffffff, 0.6); scene.add(ambient);
+    const dir = new THREE.DirectionalLight(0xffffff, 0.6); dir.position.set(5,5,5); scene.add(dir);
+
+    const house = new THREE.Group();
+    // base
+    const baseMat = new THREE.MeshStandardMaterial({ color: 0xffe4c4 });
+    const base = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.5, 0.6), baseMat);
+    base.position.y = 0.25; house.add(base);
+    // roof
+    const roofMat = new THREE.MeshStandardMaterial({ color: 0x8b0000 });
+    const roof = new THREE.Mesh(new THREE.ConeGeometry(0.7, 0.5, 4), roofMat);
+    roof.rotation.y = Math.PI / 4; roof.position.y = 0.7; house.add(roof);
+  // door (pivoted so it can swing closed)
+  const doorPivot = new THREE.Group();
+  doorPivot.position.set(-0.09, 0.05, 0.31);
+  const door = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.28, 0.02), new THREE.MeshStandardMaterial({ color: 0x5c3317 }));
+  door.position.set(0.09, 0, 0);
+  door.castShadow = true;
+  // knob
+  const knobGeometry = new THREE.SphereGeometry(0.02, 12, 8);
+  const knobMaterial = new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.9, roughness: 0.2 });
+  const knob = new THREE.Mesh(knobGeometry, knobMaterial);
+  knob.position.set(0.07, 0, 0.011);
+  door.add(knob);
+  doorPivot.add(door);
+  house.add(doorPivot);
+    // window
+    const win = new THREE.Mesh(new THREE.PlaneGeometry(0.16, 0.16), new THREE.MeshStandardMaterial({ color: 0xaaddff }));
+    win.position.set(-0.25, 0.3, 0.31); house.add(win);
+
+    house.position.y = 0.7;
+    scene.add(house);
+
+    function animate(){
+      requestAnimationFrame(animate);
+      house.rotation.y += 0.01;
+      renderer.render(scene, camera);
+    }
+    animate();
+
+    // animate door then navigate
+    (function(){
+      let animating = false;
+      function easeOutCubic(t){ return 1 - Math.pow(1 - t, 3); }
+      function animateDoorClose(){
+        if(animating) return;
+        animating = true;
+        const duration = 650;
+        const start = performance.now();
+        const endRot = -Math.PI * 0.9;
+        const startScale = 1;
+        const targetScale = 1.08;
+        const overlay = document.createElement('div');
+        overlay.style.position = 'fixed'; overlay.style.left = '0'; overlay.style.top = '0';
+        overlay.style.width = '100%'; overlay.style.height = '100%'; overlay.style.background = '#000';
+        overlay.style.opacity = '0'; overlay.style.pointerEvents = 'none'; overlay.style.transition = 'opacity 240ms ease';
+        document.body.appendChild(overlay);
+
+        function frame(now){
+          const t = Math.min(1, (now - start) / duration);
+          const e = easeOutCubic(t);
+          doorPivot.rotation.y = endRot * e;
+          const s = startScale + (targetScale - startScale) * e;
+          house.scale.set(s, s, s);
+          if(t > 0.55) overlay.style.opacity = String((t - 0.55) / 0.45);
+          renderer.render(scene, camera);
+          if(t < 1) requestAnimationFrame(frame);
+          else setTimeout(()=> window.location.href = 'index.html?skipIntro=1', 160);
+        }
+        requestAnimationFrame(frame);
+      }
+      canvas.addEventListener('click', animateDoorClose);
+    })();
+    window.addEventListener('resize', ()=>{ renderer.setSize(140,140); camera.updateProjectionMatrix(); });
+  })();
+});
+</script>

@@ -2,24 +2,86 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>SYSTEM ONLINE</title>
+  <title>IGBY!</title>
+
   <link rel="stylesheet" href="css/style.css">
+
+  <!-- GSAP + Plugins -->
+  <script src="https://unpkg.com/gsap@3/dist/gsap.min.js"></script>
+  <script src="https://unpkg.com/gsap@3/dist/Draggable.min.js"></script>
+  <script src="https://unpkg.com/gsap@3/dist/InertiaPlugin.min.js"></script>
+  <script src="https://unpkg.com/gsap@3/dist/Physics2DPlugin.min.js"></script>
+
+  <!-- Three.js -->
+  <!-- Import map to allow example modules to resolve the bare 'three' specifier in the browser -->
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.160.0/build/three.module.js"
+    }
+  }
+  </script>
+
+  <!-- Use ES module builds of three.js + GLTFLoader and expose them as globals so existing code keeps working -->
+  <script type="module">
+    import * as THREE from 'https://unpkg.com/three@0.160.0/build/three.module.js';
+    import { GLTFLoader } from 'https://unpkg.com/three@0.160.0/examples/jsm/loaders/GLTFLoader.js';
+    // Expose the module-built THREE on window to keep the rest of the app unchanged
+    window.THREE = THREE;
+    // Store GLTFLoader separately since the THREE object is not extensible
+    window.GLTFLoader = GLTFLoader;
+    // Signal that THREE is ready so main.js can proceed
+    window.dispatchEvent(new CustomEvent('three-ready'));
+  </script>
 </head>
 <body>
 
-<div id="scanlines"></div>
+<div id="preloader">IT'S GOTTA BE YOU...</div>
 
-<audio id="boot-audio" src="assets/audio/intro.mp3" loop></audio>
+<div id="wrapper">
+  <div id="stage">
 
-<div class="boot-screen">
-  <pre id="boot-text"></pre>
+    <canvas id="particles"></canvas>
 
-  <div id="enter-btn" class="enter hidden">
-    <a href="beats.html">[ ENTER SYSTEM ]</a>
+    <!-- THREE.JS CANVAS for 3D Speaker -->
+    <canvas id="three-canvas"></canvas>
+
+    <!-- BEAT OBJECTS -->
+    <div class="beat" data-audio="assets/audio/intro.wav" style="top:20%; left:20%;">
+      <svg viewBox="0 0 100 100">
+        <circle cx="50" cy="30" r="20" fill="#000" stroke="#ff0000" stroke-width="2"/>
+        <rect x="40" y="50" width="20" height="30" fill="#000" stroke="#ff0000" stroke-width="2"/>
+        <line x1="40" y1="60" x2="30" y2="70" stroke="#ff0000" stroke-width="2"/>
+        <line x1="60" y1="60" x2="70" y2="70" stroke="#ff0000" stroke-width="2"/>
+        <circle cx="50" cy="85" r="10" fill="#ff0000" stroke="#000" stroke-width="2"/>
+      </svg>
+      <span class="beat-label">BEAT_01</span>
+    </div>
+
+    <div class="beat" data-audio="assets/audio/intro.wav" style="top:50%; left:50%;">
+      <svg viewBox="0 0 100 100">
+        <circle cx="50" cy="30" r="20" fill="#000" stroke="#ff0000" stroke-width="2"/>
+        <rect x="40" y="50" width="20" height="30" fill="#000" stroke="#ff0000" stroke-width="2"/>
+        <line x1="40" y1="60" x2="30" y2="70" stroke="#ff0000" stroke-width="2"/>
+        <line x1="60" y1="60" x2="70" y2="70" stroke="#ff0000" stroke-width="2"/>
+        <circle cx="50" cy="85" r="10" fill="#ff0000" stroke="#000" stroke-width="2"/>
+      </svg>
+      <span class="beat-label">BEAT_02</span>
+    </div>
+
+    <!-- Add more beats as needed -->
+
+    <div id="panel">
+      <span id="panel-text">AUDIO SYSTEM READY</span>
+    </div>
+
   </div>
 </div>
 
+<audio id="thump-sound" src="assets/audio/thump.mp3"></audio>
+<audio id="wave-sound" src="assets/audio/wave-pulse.mp3" loop></audio>
+<audio id="explosion-sound" src="assets/audio/explosion.mp3"></audio> <!-- Add explosion sound asset -->
+
 <script src="js/main.js"></script>
 </body>
-
 </html>

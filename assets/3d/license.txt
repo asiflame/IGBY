@@ -1,0 +1,11 @@
+Model Information:
+* title:	Soul Eater Moon
+* source:	https://sketchfab.com/3d-models/soul-eater-moon-2984fad7837d4d15815f57cdd453efed
+* author:	Don Anderson (https://sketchfab.com/dander36)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "Soul Eater Moon" (https://sketchfab.com/3d-models/soul-eater-moon-2984fad7837d4d15815f57cdd453efed) by Don Anderson (https://sketchfab.com/dander36) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)

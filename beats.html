@@ -4,6 +4,20 @@
   <meta charset="UTF-8">
   <title>AUDIO ENGINE</title>
   <link rel="stylesheet" href="css/style.css">
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.160.0/build/three.module.js"
+    }
+  }
+  </script>
+  <script type="module">
+    import * as THREE from 'https://unpkg.com/three@0.160.0/build/three.module.js';
+    import { GLTFLoader } from 'https://unpkg.com/three@0.160.0/examples/jsm/loaders/GLTFLoader.js';
+    window.THREE = THREE;
+    window.GLTFLoader = GLTFLoader;
+    window.dispatchEvent(new CustomEvent('three-ready'));
+  </script>
 </head>
 <body>
 
@@ -12,28 +26,11 @@
 <div class="container">
   <div class="frame">
 
-    <nav class="nav">
-      <a href="index.html">HOME</a> |
-      <a href="beats.html" class="active">AUDIO</a> |
-      <a href="about.html">PROFILE</a> |
-      <a href="releases.html">ARCHIVE</a> |
-      <a href="contact.html">TRANSMISSION</a>
-    </nav>
-
-    <h1 class="title">AUDIO ENGINE</h1>
-
-    <div class="track">
-      <p>[ TRACK_01 ]</p>
-      <p>BPM: 140</p>
-      <p>MODE: CHAKRA</p>
-      <audio controls src="assets/audio/intro.wav"></audio>
-    </div>
-
-    <div class="track">
-      <p>[ TRACK_02 ]</p>
-      <p>BPM: 128</p>
-      <p>MODE: BANKAI</p>
-      <audio controls src="assets/audio/beat2.mp3"></audio>
+    <div class="beats-section">
+      <h1>BEATS</h1>
+      <p class="beats-intro">click to play</p>
+      
+      <div id="beats-gallery"></div>
     </div>
 
   </div>
@@ -41,3 +38,230 @@
 
 </body>
 </html>
+
+<script>
+// Wait for THREE to be ready
+window.addEventListener('three-ready', initBeatsGallery);
+
+function initBeatsGallery() {
+  const beatsGallery = document.getElementById('beats-gallery');
+
+  // Define your beats
+  const beats = [
+    { name: 'BEAT_01', file: 'assets/audio/intro.wav' },
+    { name: 'BEAT_02', file: 'assets/audio/beat2.mp3' },
+    { name: 'BEAT_03', file: 'assets/audio/intro.wav' },
+    { name: 'BEAT_04', file: 'assets/audio/beat2.mp3' }
+  ];
+
+  // Create MP3 icon SVG
+  const createMp3Icon = () => {
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('viewBox', '0 0 100 100');
+    svg.setAttribute('width', '120');
+    svg.setAttribute('height', '120');
+    svg.style.display = 'block';
+    svg.style.margin = '0 auto';
+
+    // File body
+    const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    rect.setAttribute('x', '15');
+    rect.setAttribute('y', '10');
+    rect.setAttribute('width', '70');
+    rect.setAttribute('height', '85');
+    rect.setAttribute('fill', '#333');
+    rect.setAttribute('stroke', '#666');
+    rect.setAttribute('stroke-width', '1.5');
+    svg.appendChild(rect);
+
+    // Folded corner
+    const corner = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+    corner.setAttribute('points', '85,10 85,25 70,10');
+    corner.setAttribute('fill', '#444');
+    svg.appendChild(corner);
+
+    // Music notes
+    const note1 = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    note1.setAttribute('cx', '35');
+    note1.setAttribute('cy', '55');
+    note1.setAttribute('r', '5');
+    note1.setAttribute('fill', '#ff6b6b');
+    svg.appendChild(note1);
+
+    const stem1 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    stem1.setAttribute('x1', '40');
+    stem1.setAttribute('y1', '55');
+    stem1.setAttribute('x2', '40');
+    stem1.setAttribute('y2', '30');
+    stem1.setAttribute('stroke', '#ff6b6b');
+    stem1.setAttribute('stroke-width', '2');
+    svg.appendChild(stem1);
+
+    const note2 = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    note2.setAttribute('cx', '55');
+    note2.setAttribute('cy', '65');
+    note2.setAttribute('r', '5');
+    note2.setAttribute('fill', '#ff6b6b');
+    svg.appendChild(note2);
+
+    const stem2 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    stem2.setAttribute('x1', '60');
+    stem2.setAttribute('y1', '65');
+    stem2.setAttribute('x2', '60');
+    stem2.setAttribute('y2', '35');
+    stem2.setAttribute('stroke', '#ff6b6b');
+    stem2.setAttribute('stroke-width', '2');
+    svg.appendChild(stem2);
+
+    const beam = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    beam.setAttribute('d', 'M 40 30 Q 50 28 60 35');
+    beam.setAttribute('fill', 'none');
+    beam.setAttribute('stroke', '#ff6b6b');
+    beam.setAttribute('stroke-width', '1.5');
+    svg.appendChild(beam);
+
+    return svg;
+  };
+
+  const audioPlayer = new Audio();
+
+  beats.forEach((beat) => {
+    const container = document.createElement('div');
+    container.className = 'beat-item';
+    container.style.width = '160px';
+    container.style.cursor = 'pointer';
+    container.style.textAlign = 'center';
+    container.style.marginRight = '20px';
+    container.style.marginBottom = '20px';
+    container.style.display = 'inline-block';
+
+    const icon = createMp3Icon();
+    icon.style.width = '120px';
+    icon.style.height = '120px';
+    icon.style.margin = '0 auto 8px';
+    icon.style.transition = 'all 0.2s ease';
+    container.appendChild(icon);
+
+    const label = document.createElement('div');
+    label.textContent = beat.name;
+    label.style.color = '#555';
+    label.style.fontSize = '13px';
+    label.style.fontWeight = '600';
+    container.appendChild(label);
+
+    beatsGallery.appendChild(container);
+
+    let isPlaying = false;
+
+    // Hover effect
+    container.addEventListener('mouseenter', () => {
+      icon.style.transform = 'scale(1.1)';
+      icon.style.opacity = '0.8';
+    });
+    container.addEventListener('mouseleave', () => {
+      icon.style.transform = 'scale(1)';
+      icon.style.opacity = isPlaying ? '0.6' : '1';
+    });
+
+    // Click to play
+    container.addEventListener('click', () => {
+      // Stop any currently playing beat
+      if (audioPlayer.src && !audioPlayer.paused) {
+        audioPlayer.pause();
+        audioPlayer.currentTime = 0;
+      }
+
+      isPlaying = !isPlaying;
+      if (isPlaying) {
+        audioPlayer.src = beat.file;
+        audioPlayer.loop = true;
+        audioPlayer.play().catch(err => console.log('Playback error:', err));
+        icon.style.opacity = '0.6';
+      } else {
+        audioPlayer.pause();
+        audioPlayer.currentTime = 0;
+        icon.style.opacity = '1';
+      }
+    });
+
+    audioPlayer.addEventListener('ended', () => {
+      isPlaying = false;
+      icon.style.opacity = '1';
+    });
+  });
+}
+
+// mini spinning house in bottom-right that links back to menu
+window.addEventListener('three-ready', function(){
+  (function(){
+    const canvas = document.createElement('canvas');
+    canvas.id = 'mini-house-canvas';
+    canvas.style.position = 'fixed';
+    canvas.style.right = '18px';
+    canvas.style.bottom = '128px';
+    canvas.style.width = '140px';
+    canvas.style.height = '140px';
+    canvas.style.zIndex = 10001;
+    canvas.style.cursor = 'pointer';
+    document.body.appendChild(canvas);
+
+    const renderer = new THREE.WebGLRenderer({ canvas: canvas, alpha: true, antialias: true });
+    renderer.setSize(140, 140);
+    renderer.setPixelRatio(window.devicePixelRatio || 1);
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 10);
+    camera.position.set(0, 1.2, 2.2);
+
+    const ambient = new THREE.AmbientLight(0xffffff, 0.6); scene.add(ambient);
+    const dir = new THREE.DirectionalLight(0xffffff, 0.6); dir.position.set(5,5,5); scene.add(dir);
+
+    const house = new THREE.Group();
+    const baseMat = new THREE.MeshStandardMaterial({ color: 0xffe4c4 });
+    const base = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.5, 0.6), baseMat);
+    base.position.y = 0.25; house.add(base);
+    const roofMat = new THREE.MeshStandardMaterial({ color: 0x8b0000 });
+    const roof = new THREE.Mesh(new THREE.ConeGeometry(0.7, 0.5, 4), roofMat);
+    roof.rotation.y = Math.PI / 4; roof.position.y = 0.7; house.add(roof);
+        // door with pivot for closing animation
+        const doorPivot = new THREE.Group();
+        doorPivot.position.set(-0.09, 0.05, 0.31);
+        const door = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.28, 0.02), new THREE.MeshStandardMaterial({ color: 0x5c3317 }));
+        door.position.set(0.09, 0, 0);
+        door.castShadow = true;
+  // knob
+  const knobGeometry = new THREE.SphereGeometry(0.02, 12, 8);
+  const knobMaterial = new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.9, roughness: 0.2 });
+  const knob = new THREE.Mesh(knobGeometry, knobMaterial);
+  knob.position.set(0.07, 0, 0.011);
+  door.add(knob);
+        doorPivot.add(door);
+        house.add(doorPivot);
+    const win = new THREE.Mesh(new THREE.PlaneGeometry(0.16, 0.16), new THREE.MeshStandardMaterial({ color: 0xaaddff }));
+    win.position.set(-0.25, 0.3, 0.31); house.add(win);
+
+    house.position.y = 0.7;
+    scene.add(house);
+
+    function animate(){
+      requestAnimationFrame(animate);
+      house.rotation.y += 0.01;
+      renderer.render(scene, camera);
+    }
+    animate();
+
+        // door close animation + navigate (snappier + wipe + SFX)
+        (function(){
+          let animating = false;
+          function easeOutCubic(t){ return 1 - Math.pow(1 - t, 3); }
+          let audioCtx = null; function ensureAudio(){ if(!audioCtx) audioCtx = new (window.AudioContext||window.webkitAudioContext)(); return audioCtx; }
+          function playCreakAndClick(delaySec){ const ctx = ensureAudio(); const now = ctx.currentTime + (delaySec||0); const o = ctx.createOscillator(); const g = ctx.createGain(); o.type='sine'; o.frequency.setValueAtTime(150, now); o.frequency.exponentialRampToValueAtTime(80, now+0.12); g.gain.setValueAtTime(0.0001, now); g.gain.linearRampToValueAtTime(0.05, now+0.02); g.gain.linearRampToValueAtTime(0.001, now+0.12); o.connect(g); g.connect(ctx.destination); o.start(now); o.stop(now+0.13); const buffer = ctx.createBuffer(1, ctx.sampleRate*0.02, ctx.sampleRate); const data = buffer.getChannelData(0); for(let i=0;i<data.length;i++) data[i] = (Math.random()*2-1) * Math.exp(-i/data.length*6); const src = ctx.createBufferSource(); const gg = ctx.createGain(); src.buffer=buffer; src.connect(gg); gg.connect(ctx.destination); gg.gain.setValueAtTime(0.0001, now+0.28); gg.gain.exponentialRampToValueAtTime(0.8, now+0.285); gg.gain.exponentialRampToValueAtTime(0.0001, now+0.34); src.start(now+0.28); }
+          function animateDoorClose(){ if(animating) return; animating = true; const duration = 420; const start = performance.now(); const endRot = -Math.PI*0.95; const startScale = 1; const targetScale = 1.06; const overlay = document.createElement('div'); overlay.style.position='fixed'; overlay.style.left='0'; overlay.style.top='0'; overlay.style.width='100%'; overlay.style.height='100%'; overlay.style.background='#1b0f07'; overlay.style.transformOrigin='left center'; overlay.style.transform='scaleX(0)'; overlay.style.pointerEvents='none'; overlay.style.zIndex=10000; document.body.appendChild(overlay); playCreakAndClick(0);
+            function frame(now){ const t=Math.min(1,(now-start)/duration); const e = easeOutCubic(t); doorPivot.rotation.y = endRot * e; const s = startScale + (targetScale - startScale) * e; house.scale.set(s,s,s); overlay.style.transform = `scaleX(${e})`; renderer.render(scene,camera); if(t<1) requestAnimationFrame(frame); else { playCreakAndClick(0.0); setTimeout(()=> window.location.href='index.html?skipIntro=1', 140); } }
+          requestAnimationFrame(frame);
+          }
+          canvas.addEventListener('click', animateDoorClose);
+        })();
+    window.addEventListener('resize', ()=>{ renderer.setSize(140,140); camera.updateProjectionMatrix(); });
+  })();
+});
+</script>

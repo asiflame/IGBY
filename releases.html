@@ -4,6 +4,20 @@
   <meta charset="UTF-8">
   <title>DATA ARCHIVE</title>
   <link rel="stylesheet" href="css/style.css">
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.160.0/build/three.module.js"
+    }
+  }
+  </script>
+  <script type="module">
+    import * as THREE from 'https://unpkg.com/three@0.160.0/build/three.module.js';
+    import { GLTFLoader } from 'https://unpkg.com/three@0.160.0/examples/jsm/loaders/GLTFLoader.js';
+    window.THREE = THREE;
+    window.GLTFLoader = GLTFLoader;
+    window.dispatchEvent(new CustomEvent('three-ready'));
+  </script>
 </head>
 <body>
 
@@ -12,24 +26,345 @@
 <div class="container">
   <div class="frame">
 
-    <nav class="nav">
-      <a href="index.html">HOME</a> |
-      <a href="beats.html">AUDIO</a> |
-      <a href="about.html">PROFILE</a> |
-      <a href="releases.html" class="active">ARCHIVE</a> |
-      <a href="contact.html">TRANSMISSION</a>
-    </nav>
-
-    <h1 class="title">DATA ARCHIVE</h1>
-
-    <ul class="archive">
-      <li>ARCHIVE_2018</li>
-      <li>ARCHIVE_2021</li>
-      <li>ARCHIVE_2024</li>
-    </ul>
+    <div class="releases-section">      
+      <div id="latest-videos" style="display: flex; align-items: center; justify-content: center; height: 100%; width: 100%; overflow: hidden;">
+        <p style="color: #888; font-size: 12px; text-align: center;">loading...</p>
+      </div>
+    </div>
 
   </div>
 </div>
-
 </body>
 </html>
+
+<script>
+// Professional 3D Vinyl Player with spinning record
+window.addEventListener('three-ready', initVinylPlayer);
+
+function initVinylPlayer() {
+  const container = document.getElementById('latest-videos');
+  
+  // Create canvas for Three.js
+  const canvas = document.createElement('canvas');
+  canvas.style.width = '100%';
+  canvas.style.height = '100%';
+  canvas.style.display = 'block';
+  container.innerHTML = '';
+  container.appendChild(canvas);
+
+  // Three.js setup
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0xf5f5f5);
+  
+  const camera = new THREE.PerspectiveCamera(50, container.clientWidth / container.clientHeight, 0.1, 1000);
+  const renderer = new THREE.WebGLRenderer({ canvas: canvas, alpha: false, antialias: true });
+  renderer.setSize(container.clientWidth, container.clientHeight);
+  renderer.setPixelRatio(window.devicePixelRatio || 1);
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  
+  // camera a bit lower and closer for a compact centered view
+  camera.position.set(0, 0.9, 1.8);
+  camera.lookAt(0, 0, 0);
+
+  // Lighting - key light from above/front
+  const keyLight = new THREE.DirectionalLight(0xffffff, 1.2);
+  keyLight.position.set(2.5, 3.5, 2);
+  keyLight.castShadow = true;
+  keyLight.shadow.camera.left = -2;
+  keyLight.shadow.camera.right = 2;
+  keyLight.shadow.camera.top = 2;
+  keyLight.shadow.camera.bottom = -2;
+  keyLight.shadow.mapSize.set(1024, 1024);
+  scene.add(keyLight);
+
+  // Soft ambient for fill
+  const ambient = new THREE.AmbientLight(0xffffff, 0.45);
+  scene.add(ambient);
+
+  // Fill light from the back-left
+  const fillLight = new THREE.PointLight(0xffffff, 0.5);
+  fillLight.position.set(-2, 1.5, 1.5);
+  scene.add(fillLight);
+
+  // Vinyl player group
+  const turntableGroup = new THREE.Group();
+  // scale down and center the whole player
+  turntableGroup.scale.set(0.65, 0.65, 0.65);
+  turntableGroup.position.set(0, 0, 0);
+
+  // Create the vinyl record (spins on Y axis - horizontal)
+  const vinylGroup = new THREE.Group();
+
+  // Load texture for the vinyl (igby2.png)
+  const textureLoader = new THREE.TextureLoader();
+  textureLoader.load('assets/img/azu.jpg', (texture) => {
+    texture.colorSpace = THREE.SRGBColorSpace;
+    
+    // Main vinyl disc surface with image -- keep cylinder default (faces up/down) so it lies flat
+    const discGeometry = new THREE.CylinderGeometry(1.0, 1.0, 0.06, 128);
+    const discMaterial = new THREE.MeshStandardMaterial({
+      map: texture,
+      metalness: 0.15,
+      roughness: 0.55,
+      side: THREE.DoubleSide
+    });
+    const disc = new THREE.Mesh(discGeometry, discMaterial);
+    disc.castShadow = true;
+    disc.receiveShadow = true;
+    // place disc so its top sits slightly above the platter
+    disc.position.y = 0.06;
+    vinylGroup.add(disc);
+  });
+
+  // Vinyl grooves (dark rings on the surface) - use torus rotated to sit flat on disc
+  const grooveCount = 26;
+  for (let i = 0; i < grooveCount; i++) {
+    const radius = 0.35 + (i / grooveCount) * 0.55;
+    const grooveGeometry = new THREE.TorusGeometry(radius, 0.006, 12, 120);
+    const grooveMaterial = new THREE.MeshStandardMaterial({
+      color: 0x0f0f0f,
+      metalness: 0.25,
+      roughness: 0.7
+    });
+    const groove = new THREE.Mesh(grooveGeometry, grooveMaterial);
+    // rotate torus so it lies flat (normal up along Y)
+    groove.rotation.x = Math.PI / 2;
+    groove.position.y = 0.061 + i * 0.0004;
+    vinylGroup.add(groove);
+  }
+
+  // Vinyl edge ring (dark glossy edge)
+  const edgeGeometry = new THREE.TorusGeometry(1.02, 0.04, 32, 200);
+  const edgeMaterial = new THREE.MeshStandardMaterial({
+    color: 0x111111,
+    metalness: 0.85,
+    roughness: 0.25
+  });
+  const edge = new THREE.Mesh(edgeGeometry, edgeMaterial);
+  edge.rotation.x = Math.PI / 2; // Horizontal
+  edge.position.y = 0.07;
+  vinylGroup.add(edge);
+
+  // Center label (spindle area)
+  const labelGeometry = new THREE.CylinderGeometry(0.26, 0.26, 0.04, 64);
+  const labelMaterial = new THREE.MeshStandardMaterial({
+    color: 0x0f0f0f,
+    metalness: 0.35,
+    roughness: 0.45
+  });
+  const label = new THREE.Mesh(labelGeometry, labelMaterial);
+  label.position.y = 0.08;
+  label.castShadow = true;
+  label.receiveShadow = true;
+  vinylGroup.add(label);
+
+  // Center reflection circle on label
+  const centerGeometry = new THREE.CylinderGeometry(0.12, 0.12, 0.03, 64);
+  const centerMaterial = new THREE.MeshStandardMaterial({
+    color: 0x404040,
+    metalness: 0.75,
+    roughness: 0.25
+  });
+  const center = new THREE.Mesh(centerGeometry, centerMaterial);
+  center.position.y = 0.095;
+  center.castShadow = true;
+  vinylGroup.add(center);
+
+  // Spindle (metal post in center) - keep vertical (no rotation)
+  const spindleGeometry = new THREE.CylinderGeometry(0.03, 0.03, 0.12, 32);
+  const spindleMaterial = new THREE.MeshStandardMaterial({
+    color: 0xcfcfcf,
+    metalness: 0.95,
+    roughness: 0.08
+  });
+  const spindle = new THREE.Mesh(spindleGeometry, spindleMaterial);
+  spindle.position.y = 0.12;
+  spindle.castShadow = true;
+  vinylGroup.add(spindle);
+
+  turntableGroup.add(vinylGroup);
+
+  // Turntable platter (metal plate under the record)
+  const platterGeometry = new THREE.CylinderGeometry(1.08, 1.08, 0.04, 128);
+  const platterMaterial = new THREE.MeshStandardMaterial({
+    color: 0x333333,
+    metalness: 0.5,
+    roughness: 0.55
+  });
+  const platter = new THREE.Mesh(platterGeometry, platterMaterial);
+  platter.position.y = 0.01;
+  platter.castShadow = true;
+  platter.receiveShadow = true;
+  turntableGroup.add(platter);
+
+  // Turntable base/motor housing (compact)
+  const baseGeometry = new THREE.CylinderGeometry(1.22, 1.22, 0.18, 128);
+  const baseMaterial = new THREE.MeshStandardMaterial({
+    color: 0x202020,
+    metalness: 0.25,
+    roughness: 0.6
+  });
+  const base = new THREE.Mesh(baseGeometry, baseMaterial);
+  base.position.y = -0.12;
+  base.castShadow = true;
+  base.receiveShadow = true;
+  turntableGroup.add(base);
+
+  // Tonearm (stylus arm) - positioned above the platter
+  const armPivotGroup = new THREE.Group();
+  armPivotGroup.position.set(0.85, 0.06, 0);
+
+  // Arm support
+  const armGeometry = new THREE.BoxGeometry(0.06, 0.06, 0.9);
+  const armMaterial = new THREE.MeshStandardMaterial({
+    color: 0x5c4033,
+    metalness: 0.15,
+    roughness: 0.6
+  });
+  const arm = new THREE.Mesh(armGeometry, armMaterial);
+  arm.position.set(0, 0, 0.35);
+  arm.rotation.z = -0.35; // tilt toward the record
+  arm.castShadow = true;
+  armPivotGroup.add(arm);
+
+  // Cartridge (stylus head)
+  const cartridgeGeometry = new THREE.BoxGeometry(0.06, 0.04, 0.14);
+  const cartridgeMaterial = new THREE.MeshStandardMaterial({
+    color: 0x606060,
+    metalness: 0.6,
+    roughness: 0.25
+  });
+  const cartridge = new THREE.Mesh(cartridgeGeometry, cartridgeMaterial);
+  cartridge.position.set(0, -0.02, 0.72);
+  cartridge.rotation.z = -0.35;
+  cartridge.castShadow = true;
+  armPivotGroup.add(cartridge);
+
+  // Stylus (needle) - thin silver, positioned to just touch record surface
+  const stylusGeometry = new THREE.ConeGeometry(0.006, 0.06, 12);
+  const stylusMaterial = new THREE.MeshStandardMaterial({
+    color: 0xd0d0d0,
+    metalness: 0.95,
+    roughness: 0.05
+  });
+  const stylus = new THREE.Mesh(stylusGeometry, stylusMaterial);
+  stylus.position.set(0, -0.05, 0.72);
+  stylus.rotation.x = Math.PI / 2;
+  stylus.rotation.z = -0.35;
+  armPivotGroup.add(stylus);
+
+  turntableGroup.add(armPivotGroup);
+
+  scene.add(turntableGroup);
+
+  // Animation loop
+  function animate() {
+    requestAnimationFrame(animate);
+    // Spin the vinyl horizontally around the vertical axis
+    vinylGroup.rotation.y += 0.008;
+    renderer.render(scene, camera);
+  }
+  animate();
+
+  // Click to go to YouTube
+  canvas.addEventListener('click', () => {
+    window.location.href = 'https://www.youtube.com/@prodigby';
+  });
+  canvas.style.cursor = 'pointer';
+
+  // Handle window resize
+  window.addEventListener('resize', () => {
+    const width = container.clientWidth;
+    const height = container.clientHeight;
+    camera.aspect = width / height;
+    camera.updateProjectionMatrix();
+    renderer.setSize(width, height);
+  });
+}
+
+// Auto-refresh page every 30 minutes to fetch latest uploads
+setInterval(() => {
+  location.reload();
+}, 1800000);
+
+// mini spinning house in bottom-right that links back to menu
+(function(){
+  window.addEventListener('three-ready', () => {
+    setTimeout(() => {
+      const canvas = document.createElement('canvas');
+      canvas.id = 'mini-house-canvas';
+      canvas.style.position = 'fixed';
+      canvas.style.right = '18px';
+      canvas.style.bottom = '128px';
+      canvas.style.width = '140px';
+      canvas.style.height = '140px';
+      canvas.style.zIndex = 10001;
+      canvas.style.cursor = 'pointer';
+      document.body.appendChild(canvas);
+
+      const renderer = new THREE.WebGLRenderer({ canvas: canvas, alpha: true, antialias: true });
+      renderer.setSize(140, 140);
+      renderer.setPixelRatio(window.devicePixelRatio || 1);
+      const scene = new THREE.Scene();
+      const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 10);
+      camera.position.set(0, 1.2, 2.2);
+
+      const ambient = new THREE.AmbientLight(0xffffff, 0.6); scene.add(ambient);
+      const dir = new THREE.DirectionalLight(0xffffff, 0.6); dir.position.set(5,5,5); scene.add(dir);
+
+  const house = new THREE.Group();
+  const baseMat = new THREE.MeshStandardMaterial({ color: 0xffe4c4 });
+  const base = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.5, 0.6), baseMat);
+  base.position.y = 0.25; house.add(base);
+  const roofMat = new THREE.MeshStandardMaterial({ color: 0x8b0000 });
+  const roof = new THREE.Mesh(new THREE.ConeGeometry(0.7, 0.5, 4), roofMat);
+  roof.rotation.y = Math.PI / 4; roof.position.y = 0.7; house.add(roof);
+  // door using pivot so it can swing closed
+  const doorPivot = new THREE.Group();
+  doorPivot.position.set(-0.09, 0.05, 0.31);
+  const door = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.28, 0.02), new THREE.MeshStandardMaterial({ color: 0x5c3317 }));
+  door.position.set(0.09, 0, 0);
+  door.castShadow = true;
+  // knob
+  const knobGeometry = new THREE.SphereGeometry(0.02, 12, 8);
+  const knobMaterial = new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.9, roughness: 0.2 });
+  const knob = new THREE.Mesh(knobGeometry, knobMaterial);
+  knob.position.set(0.07, 0, 0.011);
+  door.add(knob);
+  doorPivot.add(door);
+  house.add(doorPivot);
+  const win = new THREE.Mesh(new THREE.PlaneGeometry(0.16, 0.16), new THREE.MeshStandardMaterial({ color: 0xaaddff }));
+  win.position.set(-0.25, 0.3, 0.31); house.add(win);
+
+      house.position.y = 0.7;
+      scene.add(house);
+
+      function animate(){
+        requestAnimationFrame(animate);
+        house.rotation.y += 0.01;
+        renderer.render(scene, camera);
+      }
+      animate();
+
+      // click: animate door closing then navigate
+      (function(){
+        let animating = false;
+        function easeOutCubic(t){ return 1 - Math.pow(1 - t, 3); }
+
+        // audio synth
+        let audioCtx = null; function ensureAudio(){ if(!audioCtx) audioCtx = new (window.AudioContext||window.webkitAudioContext)(); return audioCtx; }
+        function playCreakAndClick(delaySec){ const ctx = ensureAudio(); const now = ctx.currentTime + (delaySec||0); const o = ctx.createOscillator(); const g = ctx.createGain(); o.type='sine'; o.frequency.setValueAtTime(150, now); o.frequency.exponentialRampToValueAtTime(78, now+0.12); g.gain.setValueAtTime(0.0001, now); g.gain.linearRampToValueAtTime(0.05, now+0.02); g.gain.linearRampToValueAtTime(0.001, now+0.12); o.connect(g); g.connect(ctx.destination); o.start(now); o.stop(now+0.13); const buffer = ctx.createBuffer(1, ctx.sampleRate*0.02, ctx.sampleRate); const data = buffer.getChannelData(0); for(let i=0;i<data.length;i++) data[i] = (Math.random()*2-1) * Math.exp(-i/data.length*6); const src = ctx.createBufferSource(); const gg = ctx.createGain(); src.buffer=buffer; src.connect(gg); gg.connect(ctx.destination); gg.gain.setValueAtTime(0.0001, now+0.28); gg.gain.exponentialRampToValueAtTime(0.8, now+0.285); gg.gain.exponentialRampToValueAtTime(0.0001, now+0.34); src.start(now+0.28); }
+
+        function animateDoorClose(){ if(animating) return; animating=true; const duration=420; const start = performance.now(); const endRot = -Math.PI*0.95; const startScale = 1; const targetScale = 1.06; const overlay = document.createElement('div'); overlay.style.position='fixed'; overlay.style.left='0'; overlay.style.top='0'; overlay.style.width='100%'; overlay.style.height='100%'; overlay.style.background='#1b0f07'; overlay.style.transformOrigin='left center'; overlay.style.transform='scaleX(0)'; overlay.style.pointerEvents='none'; overlay.style.zIndex=10000; document.body.appendChild(overlay); playCreakAndClick(0);
+
+          function frame(now){ const t=Math.min(1,(now-start)/duration); const e = easeOutCubic(t); doorPivot.rotation.y = endRot * e; const s = startScale + (targetScale - startScale) * e; house.scale.set(s,s,s); overlay.style.transform = `scaleX(${e})`; renderer.render(scene,camera); if(t<1) requestAnimationFrame(frame); else { playCreakAndClick(0.0); setTimeout(()=> window.location.href='index.html?skipIntro=1',140); } }
+        requestAnimationFrame(frame);
+        }
+        canvas.addEventListener('click', animateDoorClose);
+      })();
+      window.addEventListener('resize', ()=>{ renderer.setSize(140,140); camera.updateProjectionMatrix(); });
+    }, 100);
+  });
+})();
+</script>
