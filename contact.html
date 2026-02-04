@@ -10,37 +10,12 @@
       "three": "https://unpkg.com/three@0.160.0/build/three.module.js"
     }
   }
-      (function(){
-      let animating = false;
-      function easeOutCubic(t){ return 1 - Math.pow(1 - t, 3); }
-
-      let audioCtx = null;
-      function ensureAudio(){ if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)(); return audioCtx; }
-      function playCreakAndClick(delaySec){
-        const ctx = ensureAudio();
-        const now = ctx.currentTime + (delaySec || 0);
-        const o = ctx.createOscillator(); const g = ctx.createGain();
-        o.type = 'sine'; o.frequency.setValueAtTime(150, now); o.frequency.exponentialRampToValueAtTime(78, now + 0.12);
-        g.gain.setValueAtTime(0.0001, now); g.gain.linearRampToValueAtTime(0.05, now + 0.02); g.gain.linearRampToValueAtTime(0.001, now + 0.12);
-        o.connect(g); g.connect(ctx.destination); o.start(now); o.stop(now + 0.13);
-        const buffer = ctx.createBuffer(1, ctx.sampleRate * 0.02, ctx.sampleRate);
-        const data = buffer.getChannelData(0); for(let i=0;i<data.length;i++) data[i] = (Math.random()*2-1) * Math.exp(-i/data.length*6);
-        const src = ctx.createBufferSource(); const gg = ctx.createGain(); src.buffer = buffer; src.connect(gg); gg.connect(ctx.destination);
-        gg.gain.setValueAtTime(0.0001, now + 0.28); gg.gain.exponentialRampToValueAtTime(0.8, now + 0.285); gg.gain.exponentialRampToValueAtTime(0.0001, now + 0.34);
-        src.start(now + 0.28);
-      }
-
-      function animateDoorClose(){
-        if(animating) return; animating = true;
-        const duration = 420; const start = performance.now();
-        const endRot = -Math.PI * 0.95; const startScale = 1; const targetScale = 1.06;
-        const overlay = document.createElement('div'); overlay.style.position='fixed'; overlay.style.left='0'; overlay.style.top='0'; overlay.style.width='100%'; overlay.style.height='100%'; overlay.style.background='#1b0f07'; overlay.style.transformOrigin='left center'; overlay.style.transform='scaleX(0)'; overlay.style.pointerEvents='none'; overlay.style.zIndex=10000; document.body.appendChild(overlay);
-        playCreakAndClick(0);
-  function frame(now){ const t = Math.min(1,(now-start)/duration); const e = easeOutCubic(t); doorPivot.rotation.y = endRot * e; const s = startScale + (targetScale - startScale) * e; house.scale.set(s,s,s); overlay.style.transform = `scaleX(${e})`; renderer.render(scene,camera); if(t<1) requestAnimationFrame(frame); else { playCreakAndClick(0.0); setTimeout(()=> window.location.href = 'index.html?skipIntro=1', 140); } }
-        requestAnimationFrame(frame);
-      }
-      canvas.addEventListener('click', animateDoorClose);
-    })();
+  </script>
+  <script type="module">
+    import * as THREE from 'https://unpkg.com/three@0.160.0/build/three.module.js';
+    window.THREE = THREE;
+    window.dispatchEvent(new CustomEvent('three-ready'));
+  </script>
             <span class="contact-value">@yourprofile</span>
           </div>
         </a>
@@ -124,10 +99,29 @@ window.addEventListener('three-ready', function(){
     }
     animate();
 
-    // animate door then navigate
+    // animate door then navigate (with creak+click SFX like other pages)
     (function(){
       let animating = false;
       function easeOutCubic(t){ return 1 - Math.pow(1 - t, 3); }
+
+      let audioCtx = null;
+      function ensureAudio(){ if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)(); return audioCtx; }
+      function playCreakAndClick(delaySec){
+        const ctx = ensureAudio();
+        const now = ctx.currentTime + (delaySec || 0);
+        // creak: sine sweep
+        const o = ctx.createOscillator(); const g = ctx.createGain();
+        o.type = 'sine'; o.frequency.setValueAtTime(180, now); o.frequency.exponentialRampToValueAtTime(78, now + 0.12);
+        g.gain.setValueAtTime(0.0001, now); g.gain.linearRampToValueAtTime(0.05, now + 0.02); g.gain.linearRampToValueAtTime(0.001, now + 0.12);
+        o.connect(g); g.connect(ctx.destination); o.start(now); o.stop(now + 0.13);
+        // click: short noise burst
+        const buffer = ctx.createBuffer(1, ctx.sampleRate * 0.02, ctx.sampleRate);
+        const data = buffer.getChannelData(0); for(let i=0;i<data.length;i++) data[i] = (Math.random()*2-1) * Math.exp(-i/data.length*6);
+        const src = ctx.createBufferSource(); const gg = ctx.createGain(); src.buffer = buffer; src.connect(gg); gg.connect(ctx.destination);
+        gg.gain.setValueAtTime(0.0001, now + 0.28); gg.gain.exponentialRampToValueAtTime(0.8, now + 0.285); gg.gain.exponentialRampToValueAtTime(0.0001, now + 0.34);
+        src.start(now + 0.28);
+      }
+
       function animateDoorClose(){
         if(animating) return;
         animating = true;
@@ -142,6 +136,9 @@ window.addEventListener('three-ready', function(){
         overlay.style.opacity = '0'; overlay.style.pointerEvents = 'none'; overlay.style.transition = 'opacity 240ms ease';
         document.body.appendChild(overlay);
 
+        // schedule creak and click similar to other pages
+        playCreakAndClick(0);
+
         function frame(now){
           const t = Math.min(1, (now - start) / duration);
           const e = easeOutCubic(t);
@@ -151,7 +148,10 @@ window.addEventListener('three-ready', function(){
           if(t > 0.55) overlay.style.opacity = String((t - 0.55) / 0.45);
           renderer.render(scene, camera);
           if(t < 1) requestAnimationFrame(frame);
-          else setTimeout(()=> window.location.href = 'index.html?skipIntro=1', 160);
+          else {
+            playCreakAndClick(0.0);
+            setTimeout(()=> window.location.href = 'index.html?skipIntro=1', 160);
+          }
         }
         requestAnimationFrame(frame);
       }

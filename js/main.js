@@ -8,9 +8,8 @@ function initApp() {
   const stage = document.getElementById("stage");
   const particlesCanvas = document.getElementById("particles");
   const particlesCtx = particlesCanvas.getContext("2d");
-  const thumpSound = document.getElementById("thump-sound");
-  const waveSound = document.getElementById("wave-sound");
-  const explosionSound = document.getElementById("explosion-sound");
+  // audio elements removed in favor of WebAudio buffers
+  const explosionSoundEl = document.getElementById("explosion-sound");
 
   particlesCanvas.width = stage.offsetWidth;
   particlesCanvas.height = stage.offsetHeight;
@@ -33,11 +32,26 @@ if (audioCtx && audioCtx.state === 'suspended') {
   window.addEventListener('keydown', resumeOnGesture, { once: true });
 }
 
-// Preload audio
+// Helper to play a preloaded AudioBuffer by path
+function playBuffer(path, when = 0, loop = false) {
+  try {
+    const buf = audioBuffers[path];
+    if (!buf) return null;
+    const src = audioCtx.createBufferSource();
+    src.buffer = buf;
+    src.loop = loop;
+    src.connect(audioCtx.destination);
+    src.start(audioCtx.currentTime + when);
+    return src;
+  } catch (e) { return null; }
+}
+
+// Preload only the essential audio files: intro and explosion
 async function preloadAudio() {
-  const audioFiles = Array.from(beats).map(beat => beat.dataset.audio);
-  audioFiles.push("assets/audio/hover-beep.mp3");
-  // background music removed per user request; do not preload intro.wav
+  const audioFiles = [
+    'assets/audio/intro.wav',
+    'assets/audio/explosion.mp3'
+  ];
 
   const promises = audioFiles.map(async (src) => {
     const response = await fetch(src);
@@ -81,7 +95,8 @@ function initThreeJS() {
   // Simple 3D speaker model (black body, red accents)
   speakerGroup = new THREE.Group();
   // Make the whole speaker a bit smaller so it fits better on screen
-  speakerGroup.scale.set(0.8, 0.8, 0.8);
+  // make a bit larger so the taller speaker reads better on-screen
+  speakerGroup.scale.set(0.78, 0.78, 0.78);
 
   // Add simple lighting to make materials readable
   const ambient = new THREE.AmbientLight(0xffffff, 0.6);
@@ -93,77 +108,119 @@ function initThreeJS() {
   frontPoint.position.set(0, 0, 3);
   scene.add(frontPoint);
 
-  // Body (larger speaker box)
-  const bodyGeometry = new THREE.BoxGeometry(3, 3, 1.2);
-  const bodyMaterial = new THREE.MeshStandardMaterial({ color: 0x0b0b0b, metalness: 0.25, roughness: 0.55 });
+  // Body (3D rectangle speaker cabinet)
+  const bodyGeometry = new THREE.BoxGeometry(4.2, 5.2, 1.6);
+  const bodyMaterial = new THREE.MeshStandardMaterial({
+    color: 0x0c0c0c,
+    metalness: 0.0,
+    roughness: 0.85
+  });  
   const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
   body.castShadow = true;
   speakerGroup.add(body);
 
-  // Front panel (slightly inset circle to act as the speaker face)
-  // Increase radius to match the larger box and use a neutral grey color
-  const faceGeometry = new THREE.CircleGeometry(1.35, 64);
-  const faceMaterial = new THREE.MeshStandardMaterial({ color: 0x6e6e6e, metalness: 0.05, roughness: 0.7 });
+  // Front panel (speaker face background)
+  const faceGeometry = new THREE.BoxGeometry(4.0, 5.0, 0.05);
+  const faceMaterial = new THREE.MeshStandardMaterial({
+    color: 0x111111,
+    roughness: 0.8
+  });
   const face = new THREE.Mesh(faceGeometry, faceMaterial);
-  face.position.z = 0.61; // Just in front of the box face (half depth + small offset)
+  face.position.z = 0.81;
   speakerGroup.add(face);
 
-  // Outer surround (rubber ring) - sized to match the larger face
-  const surroundGeometry = new THREE.TorusGeometry(1.28, 0.14, 16, 100);
-  const surroundMaterial = new THREE.MeshStandardMaterial({ color: 0x070707, metalness: 0.05, roughness: 0.8 });
-  const surround = new THREE.Mesh(surroundGeometry, surroundMaterial);
-  // Keep the surround facing forward (no rotation) so it matches the face
-  surround.rotation.x = 0;
-  surround.position.z = 0.95;
-  speakerGroup.add(surround);
+  const rim = new THREE.PointLight(0xffffff, 0.35, 10);
+rim.position.set(0, 2, -3);
+scene.add(rim);
 
-  // Cone (a smoother cone with subtle material) - sized for the larger speaker and grey
-  const coneGeometry = new THREE.CylinderGeometry(0.0, 1.05, 0.6, 64); // wider base
-  const coneMaterial = new THREE.MeshStandardMaterial({ color: 0x8a8a8a, metalness: 0.02, roughness: 0.6 });
-  const cone = new THREE.Mesh(coneGeometry, coneMaterial);
-  cone.rotation.x = Math.PI / 2; // point along Z
-  cone.position.z = 1.02; // sit within the surround
-  speakerGroup.add(cone);
 
-  // Dust cap (small convex cap in the center)
-  const capGeometry = new THREE.SphereGeometry(0.22, 32, 16);
-  const capMaterial = new THREE.MeshStandardMaterial({ color: 0x111111, metalness: 0.2, roughness: 0.35 });
-  const cap = new THREE.Mesh(capGeometry, capMaterial);
-  cap.position.z = 1.12; // slightly in front of cone center
-  speakerGroup.add(cap);
+  // === WOOFER REALISTA ===
 
-  // Grille ring (subtle metallic ring) - ensure it faces forward and fits the cone
-  const ringGeometry = new THREE.RingGeometry(0.65, 0.85, 64);
-  const ringMaterial = new THREE.MeshStandardMaterial({ color: 0x222222, metalness: 0.6, roughness: 0.3, side: THREE.DoubleSide });
-  const ring = new THREE.Mesh(ringGeometry, ringMaterial);
-  // Make sure the ring faces forward (no X rotation) so it sits vertically on the speaker face
-  ring.rotation.x = 0;
-  ring.position.z = 1.05;
-  speakerGroup.add(ring);
+// Cavidad oscura (profundidad) - slightly shallower for less excess material
+const wooferCavityGeo = new THREE.CylinderGeometry(1.15, 1.15, 0.35, 64);
+const wooferCavityMat = new THREE.MeshStandardMaterial({
+  color: 0x050505,
+  roughness: 1
+});
+const wooferCavity = new THREE.Mesh(wooferCavityGeo, wooferCavityMat);
+// rotate so the cavity axis points out of the speaker (along +Z)
+wooferCavity.rotation.x = -Math.PI / 2;
+wooferCavity.position.set(0, -0.9, 0.55);
+speakerGroup.add(wooferCavity);
+
+// Cono
+// Cone - a bit shorter so it doesn't poke through the face
+const wooferConeGeo = new THREE.ConeGeometry(1.05, 0.45, 64, 1, true);
+const wooferConeMat = new THREE.MeshStandardMaterial({
+  color: 0x1a1a1a,
+  roughness: 0.9
+});
+const wooferCone = new THREE.Mesh(wooferConeGeo, wooferConeMat);
+// align cone axis so it points outward along +Z (matches cavity)
+wooferCone.rotation.x = -Math.PI / 2;
+wooferCone.position.set(0, -0.9, 0.75);
+speakerGroup.add(wooferCone);
+
+// Dust cap
+// Dust cap slightly smaller to remove excess bulk
+const dustGeo = new THREE.SphereGeometry(0.22, 32, 32);
+const dustMat = new THREE.MeshStandardMaterial({
+  color: 0x0d0d0d,
+  roughness: 0.6
+});
+const dustCap = new THREE.Mesh(dustGeo, dustMat);
+dustCap.position.set(0, -0.9, 0.84);
+speakerGroup.add(dustCap);
+
+// Surround (aro de goma) - thinner rubber surround
+const wooferRingGeo = new THREE.TorusGeometry(1.25, 0.12, 24, 100);
+const wooferRingMat = new THREE.MeshStandardMaterial({
+  color: 0x222222,
+  roughness: 0.4
+});
+const wooferRing = new THREE.Mesh(wooferRingGeo, wooferRingMat);
+wooferRing.position.set(0, -0.9, 0.9);
+speakerGroup.add(wooferRing);
+
+// Pulso del woofer (subtler, smaller travel)
+gsap.to([wooferCone.position, dustCap.position], {
+  z: "+=0.05",
+  duration: 0.45,
+  repeat: -1,
+  yoyo: true,
+  ease: "sine.inOut"
+});
+
+
+
+  // Tiny tweeter circle above the woofer
+  const tweeterGeo = new THREE.CircleGeometry(0.22, 32);
+  const tweeterMat = new THREE.MeshStandardMaterial({
+    color: 0x222222,
+    roughness: 0.7
+  });
+  const tweeter = new THREE.Mesh(tweeterGeo, tweeterMat);
+  tweeter.position.set(0, 1.2, 0.86);
+  speakerGroup.add(tweeter);
+
+
+  // Tweeter surround ring
+  const tweeterRingGeo = new THREE.TorusGeometry(0.26, 0.05, 16, 64);
+  const tweeterRingMat = new THREE.MeshStandardMaterial({
+    color: 0x222222,
+    roughness: 0.5
+  });
+  const tweeterRing = new THREE.Mesh(tweeterRingGeo, tweeterRingMat);
+  tweeterRing.position.set(0, 1.2, 0.88);
+  speakerGroup.add(tweeterRing);
+
 
   // Stands (improved cylinders with red accent)
   const standGeometry = new THREE.CylinderGeometry(0.12, 0.12, 0.25, 16);
   const standMaterial = new THREE.MeshStandardMaterial({ color: 0xff0000, metalness: 0.4, roughness: 0.3 });
-  const leftStand = new THREE.Mesh(standGeometry, standMaterial);
-  leftStand.position.set(-0.8, -1.05, 0);
-  leftStand.rotation.x = 0;
-  speakerGroup.add(leftStand);
-  const rightStand = new THREE.Mesh(standGeometry, standMaterial);
-  rightStand.position.set(0.8, -1.05, 0);
-  speakerGroup.add(rightStand);
+  
 
   scene.add(speakerGroup);
-
-  // subtle circular shadow underneath the speaker (will pulse)
-  const shadowGeo = new THREE.CircleGeometry(1.3, 32);
-  const shadowMat = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.26 });
-  speakerShadow = new THREE.Mesh(shadowGeo, shadowMat);
-  speakerShadow.rotation.x = -Math.PI / 2;
-  // place just below the speaker bottom (box half-height is 1.5)
-  speakerShadow.position.set(0, -1.62, 0.0);
-  speakerShadow.scale.set(1,1,1);
-  speakerGroup.add(speakerShadow);
-
   // Position camera
   camera.position.z = 5;
 
@@ -187,6 +244,8 @@ function initThreeJS() {
 }
 
 function animateSpeakerFall() {
+  // play intro.wav when the speaker animation starts
+  playBuffer('assets/audio/intro.wav');
   gsap.to(speakerGroup.position, {
     y: 0,
     duration: 2,
@@ -196,7 +255,7 @@ function animateSpeakerFall() {
       speakerGroup.rotation.z = Math.random() * 0.1 - 0.05;
     },
     onComplete: () => {
-      thumpSound.play().catch(() => {});
+      // landed — start waves (no extra sound)
       startSpeakerWaves();
       // Start a slow continuous spin once the speaker is settled in the middle
       gsap.to(speakerGroup.rotation, {
@@ -210,57 +269,46 @@ function animateSpeakerFall() {
 }
 
 function startSpeakerWaves() {
-  waveSound.play().catch(() => {});
+  // visual rings only; sound handled via intro/explosion buffers
 
   // 3D wave rings
   const waveInterval = setInterval(() => {
     if (exploded) clearInterval(waveInterval);
-  const ringGeometry = new THREE.RingGeometry(1, 1.5, 32);
-  // Make the wave rings black and subtle instead of red
-  const ringMaterial = new THREE.MeshBasicMaterial({ color: 0x000000, side: THREE.DoubleSide, transparent: true, opacity: 0.45 });
+  const ringGeometry = new THREE.RingGeometry(1.2, 1.35, 32); // thinner ring band
+  // Make the wave rings black and more subtle
+  const ringMaterial = new THREE.MeshBasicMaterial({ color: 0x000000, side: THREE.DoubleSide, transparent: true, opacity: 0.40 });
     const ring = new THREE.Mesh(ringGeometry, ringMaterial);
-    ring.position.z = 1; // In front of speaker
-    ring.scale.set(0.2, 0.2, 0.2);
+    ring.scale.set(0.4, 0.4, 0.4);
+ring.position.z = 1.2;
+
     scene.add(ring);
     waveRings.push(ring);
 
-    gsap.to(ring.scale, {
-      x: 3,
-      y: 3,
-      z: 3,
-      duration: 1.5,
-      ease: "sine.out",
-      onUpdate: () => { ring.material.opacity -= 0.01; },
-      onComplete: () => {
-        scene.remove(ring);
-        waveRings = waveRings.filter(r => r !== ring);
-      }
-    });
-  }, 500);
-
-  // Pulse speaker
-  // Pulse the circular shadow under the speaker to act like a breathing shadow
-  if (speakerShadow) {
-    gsap.to(speakerShadow.scale, {
-      x: 1.12,
-      y: 1.12,
-      z: 1.12,
-      duration: 0.5,
-      repeat: -1,
-      yoyo: true,
-      ease: "sine.inOut"
-    });
-  }
+      gsap.to(ring.scale, {
+        x: 4.2,
+        y: 4.2,
+        z: 4.2,
+        duration: 1.8,
+        ease: "power1.out",
+        onUpdate: () => {
+          ring.material.opacity = Math.max(0, ring.material.opacity - 0.005);
+        },
+        onComplete: () => {
+          scene.remove(ring);
+        }
+      });
+  }, 1000);
 
   // Click listener on canvas
   document.getElementById("three-canvas").addEventListener("click", explodeSpeaker, { once: true });
 }
 
 function explodeSpeaker() {
+  
   if (exploded) return;
   exploded = true;
-  waveSound.pause();
-  explosionSound.play().catch(() => {});
+  // stop any wave visuals and play explosion buffer
+  playBuffer('assets/audio/explosion.mp3');
 
   // brief flash light to emphasize explosion (fades quickly)
   const flash = new THREE.PointLight(0xffeecc, 2.5, 10);
@@ -269,37 +317,69 @@ function explodeSpeaker() {
   gsap.to(flash, { intensity: 0, duration: 0.8, ease: "power2.out", onComplete: () => scene.remove(flash) });
 
   // Create debris pieces (boxes) and smoke puffs (spheres)
-  const debrisCount = 80; // moderate amount to avoid saturating the page
-  for (let i = 0; i < debrisCount; i++) {
-    const size = Math.random() * 0.18 + 0.05;
-    const geo = new THREE.BoxGeometry(size, size, size);
-    const mat = new THREE.MeshStandardMaterial({ color: 0x222222, metalness: 0.2, roughness: 0.6 });
-    const mesh = new THREE.Mesh(geo, mat);
-    // start near the speaker center with small random offset
-    mesh.position.set(
-      speakerGroup.position.x + (Math.random() - 0.5) * 0.6,
-      speakerGroup.position.y + (Math.random() - 0.5) * 0.6,
-      speakerGroup.position.z + (Math.random() - 0.5) * 0.6
+  const debrisCount = 90;
+
+for (let i = 0; i < debrisCount; i++) {
+  let geo;
+
+  const typeRoll = Math.random();
+
+  if (typeRoll < 0.3) {
+    // panel fragments
+    geo = new THREE.BoxGeometry(
+      Math.random() * 0.4 + 0.2,
+      Math.random() * 0.1 + 0.05,
+      Math.random() * 0.3 + 0.15
     );
-    scene.add(mesh);
-
-    const speed = 2 + Math.random() * 6;
-    const dir = new THREE.Vector3((Math.random() - 0.5), (Math.random() - 0.2), (Math.random() - 0.5)).normalize();
-    const velocity = dir.multiplyScalar(speed);
-
-    explosionParticles.push({
-      mesh,
-      vx: velocity.x,
-      vy: velocity.y,
-      vz: velocity.z,
-      rotx: Math.random() * 4 - 2,
-      roty: Math.random() * 4 - 2,
-      rotz: Math.random() * 4 - 2,
-      lifetime: 2.5 + Math.random() * 1.5,
-      age: 0,
-      type: 'debris'
-    });
+  } else if (typeRoll < 0.6) {
+    // ring chunks
+    geo = new THREE.TorusGeometry(
+      Math.random() * 0.3 + 0.3,
+      0.08,
+      8,
+      16,
+      Math.PI / 3
+    );
+  } else {
+    // cone shards
+    geo = new THREE.ConeGeometry(
+      Math.random() * 0.15 + 0.05,
+      Math.random() * 0.3 + 0.2,
+      12
+    );
   }
+
+  const mat = new THREE.MeshStandardMaterial({
+    color: 0x222222,
+    roughness: 0.7,
+    metalness: 0.1
+  });
+
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.position.copy(speakerGroup.position);
+  scene.add(mesh);
+
+  const speed = 3 + Math.random() * 7;
+  const dir = new THREE.Vector3(
+    (Math.random() - 0.5),
+    Math.random(),
+    (Math.random() - 0.5)
+  ).normalize();
+
+  explosionParticles.push({
+    mesh,
+    vx: dir.x * speed,
+    vy: dir.y * speed,
+    vz: dir.z * speed,
+    rotx: Math.random() * 6,
+    roty: Math.random() * 6,
+    rotz: Math.random() * 6,
+    lifetime: 2.5 + Math.random(),
+    age: 0,
+    type: 'debris'
+  });
+}
+
 
   // smoke puffs
   const smokeCount = 18;
@@ -439,8 +519,13 @@ function createInteractiveMenu() {
   });
 
   // Add a circle shadow below the menu boxes
-  const shadowGeo = new THREE.CircleGeometry(1.2, 64);
-  const shadowMat = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.15 });
+  const shadowGeo = new THREE.CircleGeometry(1, 28);
+const shadowMat = new THREE.MeshBasicMaterial({
+  color: 0x000000,
+  transparent: true,
+  opacity: 0.32
+});
+
   const menuShadow = new THREE.Mesh(shadowGeo, shadowMat);
   menuShadow.rotation.x = -Math.PI / 2;
   menuShadow.position.set(0, -2.5, 0);
@@ -730,11 +815,7 @@ beats.forEach(beat => {
   beat.addEventListener("mouseenter", () => {
     panelText.textContent = "READY: " + beat.querySelector(".beat-label").textContent;
     gsap.to(beat, { scale: 1.3, rotation: 10, duration: 0.3 });
-    // Hover sound (assume you have a short beep)
-    const hoverSource = audioCtx.createBufferSource();
-    hoverSource.buffer = audioBuffers["assets/audio/hover-beep.mp3"]; // Add this asset
-    hoverSource.connect(audioCtx.destination);
-    hoverSource.start();
+    // visual-only hover feedback (audio removed)
   });
 
   beat.addEventListener("mouseleave", () => {
