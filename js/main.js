@@ -49,7 +49,6 @@ function playBuffer(path, when = 0, loop = false) {
 // Preload only the essential audio files: intro and explosion
 async function preloadAudio() {
   const audioFiles = [
-    'assets/audio/intro.wav',
     'assets/audio/explosion.mp3'
   ];
 
