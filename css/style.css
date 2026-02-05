@@ -9,6 +9,8 @@ html, body {
   color: #333;
   font-size: 14px;
   line-height: 1.6;
+  /* Importante para scroll suave en móviles */
+  -webkit-overflow-scrolling: touch; 
 }
 
 #wrapper {
@@ -73,6 +75,11 @@ html, body {
   overflow-y: auto;
   padding: 0;
   box-shadow: none;
+  /* Scrollbar oculta para limpieza visual (opcional) */
+  scrollbar-width: none; 
+}
+.frame::-webkit-scrollbar { 
+  display: none; 
 }
 
 .frame > div {
@@ -198,6 +205,7 @@ html, body {
   font-size: 14px;
   color: #555;
   margin-top: 2px;
+  word-break: break-all; /* Evita que emails largos rompan el layout */
 }
 
 .contact-footer {
@@ -233,12 +241,15 @@ html, body {
   border: none;
   background: transparent;
   padding: 0;
+  width: 100%;
 }
 
 .youtube-container iframe {
   display: block;
   width: 100%;
   height: 400px;
+  /* Asegura ratio correcto en pantallas raras */
+  aspect-ratio: 16 / 9; 
 }
 
 .releases-section .archive h2 {
@@ -310,29 +321,91 @@ html, body {
   background: transparent !important;
 }
 
+/* ========================================= */
+/* ===== MOBILE & TABLET OPTIMIZATIONS ===== */
+/* ========================================= */
+
+/* Tablet (hasta 900px) */
 @media (max-width: 900px) {
+  #stage {
+    width: 95vw;
+    height: 95vh;
+  }
+
   .frame {
-    width: 95%;
-    height: 90%;
+    width: 100%; /* Aprovechar todo el stage */
+    height: 100%;
   }
 
-  .frame > div {
-    padding: 30px 30px;
-  }
-
-  .beat-item {
-    width: 150px !important;
-    height: 170px !important;
-  }
-  
-  .beat-item canvas {
-    width: 150px !important;
-    height: 150px !important;
+  /* Reducir padding interno */
+  .frame > div, 
+  .about-sections,
+  .contact-section,
+  .releases-section,
+  .beats-section {
+    padding: 30px 30px; 
   }
 
   .youtube-container iframe {
-    height: 280px;
+    height: auto; /* Dejar que aspect-ratio controle la altura */
   }
 }
 
-/* About page grid layout with image and content */
+/* Móvil estricto (hasta 600px) */
+@media (max-width: 600px) {
+  
+  /* 1. Maximizar espacio en pantalla pequeña */
+  #stage {
+    width: 100%;
+    height: 100%;
+    max-height: none;
+    border-radius: 0;
+  }
+
+  /* 2. Reducir drásticamente padding para ganar espacio */
+  .frame > div, 
+  .about-sections,
+  .contact-section,
+  .releases-section,
+  .beats-section {
+    padding: 25px 20px; /* Mucho más ajustado a los bordes */
+  }
+
+  /* 3. Títulos más compactos */
+  h1 {
+    font-size: 20px !important;
+    margin-bottom: 16px !important;
+  }
+
+  /* 4. Beats Gallery: Centrar o hacer responsive */
+  #beats-gallery {
+    justify-content: center; /* Centrar items si sobran márgenes */
+    gap: 15px;
+  }
+  
+  /* Forzar tamaño responsive para los items de beats si es necesario */
+  .beat-item {
+    width: 140px !important; /* Un poco más pequeños para caber 2 por fila */
+    height: auto !important;
+  }
+  
+  .beat-item canvas {
+    width: 140px !important;
+    height: 140px !important;
+  }
+
+  /* 5. Contactos: Mejorar área táctil */
+  .contact-link {
+    padding: 10px 0; /* Más fácil de pulsar con el dedo */
+  }
+  
+  .contact-icon {
+    font-size: 24px; /* Icono un poco más pequeño */
+  }
+
+  /* 6. Listas: Menos margen izquierdo */
+  .about-sections li, 
+  .releases-section .archive li {
+    margin-left: 8px;
+  }
+}

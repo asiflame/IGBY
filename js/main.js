@@ -108,13 +108,22 @@ function initThreeJS() {
   frontPoint.position.set(0, 0, 3);
   scene.add(frontPoint);
 
+  // --- Ajuste fino de iluminación (negros con gris visibles) ---
+ambient.intensity = 0.95;
+
+frontPoint.intensity = 0.45;
+frontPoint.color.setHex(0xf2f5ff);
+
+
   // Body (3D rectangle speaker cabinet)
   const bodyGeometry = new THREE.BoxGeometry(4.2, 5.2, 1.6);
   const bodyMaterial = new THREE.MeshStandardMaterial({
-    color: 0x0c0c0c,
-    metalness: 0.0,
-    roughness: 0.85
-  });  
+  color: 0x1a1a1a,   // negro grafito
+  roughness: 0.9,
+  metalness: 0.05
+});
+
+  
   const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
   body.castShadow = true;
   speakerGroup.add(body);
@@ -122,9 +131,12 @@ function initThreeJS() {
   // Front panel (speaker face background)
   const faceGeometry = new THREE.BoxGeometry(4.0, 5.0, 0.05);
   const faceMaterial = new THREE.MeshStandardMaterial({
-    color: 0x111111,
-    roughness: 0.8
-  });
+  color: 0x242424,   // gris oscuro
+  roughness: 0.75,
+  metalness: 0.05
+});
+
+
   const face = new THREE.Mesh(faceGeometry, faceMaterial);
   face.position.z = 0.81;
   speakerGroup.add(face);
@@ -139,9 +151,11 @@ scene.add(rim);
 // Cavidad oscura (profundidad) - slightly shallower for less excess material
 const wooferCavityGeo = new THREE.CylinderGeometry(1.15, 1.15, 0.35, 64);
 const wooferCavityMat = new THREE.MeshStandardMaterial({
-  color: 0x050505,
+  color: 0x0a0a0a,
   roughness: 1
 });
+
+
 const wooferCavity = new THREE.Mesh(wooferCavityGeo, wooferCavityMat);
 // rotate so the cavity axis points out of the speaker (along +Z)
 wooferCavity.rotation.x = -Math.PI / 2;
@@ -152,9 +166,12 @@ speakerGroup.add(wooferCavity);
 // Cone - a bit shorter so it doesn't poke through the face
 const wooferConeGeo = new THREE.ConeGeometry(1.05, 0.45, 64, 1, true);
 const wooferConeMat = new THREE.MeshStandardMaterial({
-  color: 0x1a1a1a,
-  roughness: 0.9
+  color: 0x333333,
+  roughness: 0.85,
+  metalness: 0.08
 });
+
+
 const wooferCone = new THREE.Mesh(wooferConeGeo, wooferConeMat);
 // align cone axis so it points outward along +Z (matches cavity)
 wooferCone.rotation.x = -Math.PI / 2;
@@ -165,9 +182,12 @@ speakerGroup.add(wooferCone);
 // Dust cap slightly smaller to remove excess bulk
 const dustGeo = new THREE.SphereGeometry(0.22, 32, 32);
 const dustMat = new THREE.MeshStandardMaterial({
-  color: 0x0d0d0d,
-  roughness: 0.6
+  color: 0x2a2a2a,
+  roughness: 0.55,
+  metalness: 0.15
 });
+
+
 const dustCap = new THREE.Mesh(dustGeo, dustMat);
 dustCap.position.set(0, -0.9, 0.84);
 speakerGroup.add(dustCap);
@@ -175,9 +195,12 @@ speakerGroup.add(dustCap);
 // Surround (aro de goma) - thinner rubber surround
 const wooferRingGeo = new THREE.TorusGeometry(1.25, 0.12, 24, 100);
 const wooferRingMat = new THREE.MeshStandardMaterial({
-  color: 0x222222,
-  roughness: 0.4
+  color: 0x3a3a3a,
+  roughness: 0.45,
+  metalness: 0.0
 });
+
+
 const wooferRing = new THREE.Mesh(wooferRingGeo, wooferRingMat);
 wooferRing.position.set(0, -0.9, 0.9);
 speakerGroup.add(wooferRing);
@@ -196,9 +219,12 @@ gsap.to([wooferCone.position, dustCap.position], {
   // Tiny tweeter circle above the woofer
   const tweeterGeo = new THREE.CircleGeometry(0.22, 32);
   const tweeterMat = new THREE.MeshStandardMaterial({
-    color: 0x222222,
-    roughness: 0.7
-  });
+  color: 0x3f3f3f,
+  roughness: 0.6,
+  metalness: 0.25
+});
+
+
   const tweeter = new THREE.Mesh(tweeterGeo, tweeterMat);
   tweeter.position.set(0, 1.2, 0.86);
   speakerGroup.add(tweeter);
@@ -207,9 +233,11 @@ gsap.to([wooferCone.position, dustCap.position], {
   // Tweeter surround ring
   const tweeterRingGeo = new THREE.TorusGeometry(0.26, 0.05, 16, 64);
   const tweeterRingMat = new THREE.MeshStandardMaterial({
-    color: 0x222222,
-    roughness: 0.5
-  });
+  color: 0x4a4a4a,
+  roughness: 0.4,
+  metalness: 0.2
+});
+
   const tweeterRing = new THREE.Mesh(tweeterRingGeo, tweeterRingMat);
   tweeterRing.position.set(0, 1.2, 0.88);
   speakerGroup.add(tweeterRing);
@@ -665,44 +693,106 @@ function makeIconCanvas(text, type) {
   const c = document.createElement('canvas');
   c.width = w; c.height = h;
   const ctx = c.getContext('2d');
-  // background
-  ctx.fillStyle = '#0f0f0f';
-  ctx.fillRect(0,0,w,h);
 
-  // draw icon depending on type
-  ctx.fillStyle = '#e6e6e6';
-  ctx.strokeStyle = '#444';
-  ctx.lineWidth = 8;
+  // === Background gradient ===
+  const bg = ctx.createLinearGradient(0, 0, 0, h);
+  bg.addColorStop(0, '#1a1a1a');
+  bg.addColorStop(1, '#0b0b0b');
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, w, h);
 
+  // Soft vignette
+  ctx.fillStyle = 'rgba(0,0,0,0.35)';
+  ctx.fillRect(0, h * 0.75, w, h * 0.25);
+
+  // === Icon base styling ===
+  ctx.lineWidth = 6;
+  ctx.strokeStyle = '#555';
+  ctx.fillStyle = '#eaeaea';
+  ctx.shadowColor = 'rgba(255,255,255,0.08)';
+  ctx.shadowBlur = 12;
+
+  ctx.save();
+  ctx.translate(w / 2, h / 2 - 20);
+
+  // === ICONS ===
   if (type === 'mp3') {
-    // draw file shape
+    // file
     ctx.fillStyle = '#222';
-    ctx.fillRect(120, 60, 272, 272);
-    // folded corner
-    ctx.fillStyle = '#2b2b2b';
-    ctx.beginPath(); ctx.moveTo(360,60); ctx.lineTo(360,120); ctx.lineTo(300,60); ctx.closePath(); ctx.fill();
-    // music note
+    ctx.strokeStyle = '#666';
+    ctx.beginPath();
+    ctx.roundRect(-70, -90, 140, 180, 12);
+    ctx.fill();
+    ctx.stroke();
+
+    // note
     ctx.fillStyle = '#f0f0f0';
-    ctx.beginPath(); ctx.arc(260,200,28,0,Math.PI*2); ctx.fill();
-    ctx.fillRect(280,170,18,90); ctx.fillRect(298,170,8,8);
-  } else if (type === 'person') {
-    // head
-    ctx.beginPath(); ctx.fillStyle = '#f0f0f0'; ctx.arc(256,150,38,0,Math.PI*2); ctx.fill();
-    // body
-    ctx.beginPath(); ctx.fillRect(210,210,92,120);
-  } else if (type === 'vinyl') {
-    // vinyl disc
-    ctx.fillStyle = '#111'; ctx.beginPath(); ctx.arc(256,200,80,0,Math.PI*2); ctx.fill();
-    ctx.fillStyle = '#777'; ctx.beginPath(); ctx.arc(256,200,24,0,Math.PI*2); ctx.fill();
-  } else if (type === 'envelope') {
-    ctx.fillStyle = '#222'; ctx.fillRect(120,120,272,160);
-    ctx.strokeStyle = '#ddd'; ctx.beginPath(); ctx.moveTo(120,120); ctx.lineTo(256,220); ctx.lineTo(392,120); ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(10, 40, 18, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillRect(10, -30, 14, 70);
   }
 
-  // title text
-  ctx.fillStyle = '#ddd'; ctx.font = 'bold 48px sans-serif'; ctx.textAlign = 'center'; ctx.fillText(text, w/2, h - 40);
+  if (type === 'person') {
+    ctx.fillStyle = '#f0f0f0';
+    ctx.beginPath();
+    ctx.arc(0, -30, 32, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = '#d0d0d0';
+    ctx.beginPath();
+    ctx.roundRect(-45, 10, 90, 80, 40);
+    ctx.fill();
+  }
+
+  if (type === 'vinyl') {
+    ctx.fillStyle = '#111';
+    ctx.beginPath();
+    ctx.arc(0, 10, 70, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.strokeStyle = '#333';
+    ctx.stroke();
+
+    ctx.fillStyle = '#888';
+    ctx.beginPath();
+    ctx.arc(0, 10, 12, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  if (type === 'envelope') {
+    ctx.fillStyle = '#222';
+    ctx.strokeStyle = '#666';
+    ctx.beginPath();
+    ctx.roundRect(-80, -40, 160, 100, 10);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.strokeStyle = '#999';
+    ctx.beginPath();
+    ctx.moveTo(-80, -40);
+    ctx.lineTo(0, 20);
+    ctx.lineTo(80, -40);
+    ctx.stroke();
+  }
+
+  ctx.restore();
+
+  // === Title ===
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = '#dcdcdc';
+  ctx.font = '600 42px system-ui, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText(text, w / 2, h - 36);
+
+  // subtle border
+  ctx.strokeStyle = '#2a2a2a';
+  ctx.lineWidth = 4;
+  ctx.strokeRect(10, 10, w - 20, h - 20);
+
   return c;
 }
+
 
 // Three.js render loop (with explosion particle updates)
 function animateThree() {
